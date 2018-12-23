@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">RxAndroidRetrofit</string>
+    <string name="busStopID">버스 정류장 번호</string>
+    <string name="Searching">검색</string>
+</resources>
