@@ -1,9 +1,11 @@
 package com.example.dlwlr.rxandroidretrofit;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -11,7 +13,9 @@ import android.widget.TextView;
 import com.example.dlwlr.rxandroidretrofit.API.BusAPI;
 import com.example.dlwlr.rxandroidretrofit.Model.Bus;
 import com.jakewharton.rxbinding3.view.RxView;
+import com.jakewharton.rxbinding3.widget.RxTextView;
 
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 import butterknife.BindView;
@@ -20,6 +24,7 @@ import butterknife.OnClick;
 import io.reactivex.Observable;
 import io.reactivex.Scheduler;
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -29,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
 
     static String TAG = "MainActivity";
     BusAPI apiProvider = new BusAPI();
+    ArrayList<Disposable> disposeBag = new ArrayList<>();
 
     @BindView(R.id.editText)
     EditText busStopIDTxt;
@@ -43,52 +49,54 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
-
-        this.resultView.setText("Loading~~~");
-//        Call<Bus> res = apiProvider.getData(410);
-//        res.enqueue(new Callback<Bus>() {
-//            @Override
-//            public void onResponse(Call<Bus> call, Response<Bus> response) {
-//                Log.d(TAG,call.request().url().toString());
-//                resultView.setText(response.body().getResult().getResultCode());
-//            }
-//
-//            @Override
-//            public void onFailure(Call<Bus> call, Throwable t) {
-//                Log.e(TAG,t.getLocalizedMessage());
-//            }
-//        });
-//        apiProvider.getBusDataObservable(Integer.parseInt("410"))
-//                .subscribe(
-//                       bus -> {
-//                           Log.d(TAG, "code:" +bus.getResult().getResultCode() + "msg" + bus.getResult().getResultMsg());
-//                       },
-//                        e-> { this.resultView.setText(e.getLocalizedMessage());}
-//                );
-        RxView.clicks(searchBtn)
-                .map(n -> this.busStopIDTxt.getText().toString())
-                .filter(n -> n.length() > 0)
-                .doOnNext(n -> Log.d(TAG,n))
-                .flatMap(n -> apiProvider.getBusDataObservable(Integer.parseInt(n)))
-                .doOnNext(bus -> Log.d(TAG,bus.getResult().getResultCode()))
-                .doOnError(e -> Log.e("TAG",e.getLocalizedMessage()))
-                .subscribeOn(AndroidSchedulers.mainThread())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(n -> resultView.setText(n.getResult().getResultCode()),
-                        e -> resultView.setText("애러발생 !!" + e.getLocalizedMessage()));
+    }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        super.onStart();
+        /* 검색 버튼 클릭 이벤트 */
+        Observable<String> clickEvent = RxView.clicks(searchBtn)
+                .map(n -> this.busStopIDTxt.getText().toString());
+        /* 키보드 완료 버튼 클릭 이벤트 */
+        Observable<String> doneEvent = RxTextView.editorActions(busStopIDTxt)
+                .map(n -> this.busStopIDTxt.getText().toString());
+        /* 이벤트 Merge */
+        Observable<String> together = Observable.merge(clickEvent,doneEvent);
+        /* 이벤트 Subscription */
+        Disposable events = together.subscribeOn(AndroidSchedulers.mainThread())
+        .filter(n -> n.length() > 0)
+        .doOnNext(avoid -> { /* 키보드 내리기*/
+            InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(this.busStopIDTxt.getWindowToken(),0);
+        })
+        .observeOn(Schedulers.newThread())
+        .flatMap(n -> apiProvider.getBusDataObservable(Integer.parseInt(n))) /*API 통신*/
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribe(n -> { /*결과 화면에 출력*/
+            resultView.append(n.getResult().getResultCode() + "\n");
+            resultView.append(n.getResult().getResultMsg() + "\n");
+            for(int i = 0; i< n.getBusStopListList().size(); i++){
+                resultView.append(n.getBusStopListList().get(i).getBUSSTOPNAME() + "\n");
+            }
+            },
+                e -> resultView.setText(e.getLocalizedMessage())
+        );
+        /* Disposable 저장 */
+        disposeBag.add(events);
     }
 
-    void callUsingLambda() {
-        Log.d(TAG,"callUsingLambda");
-        Observable.interval(1,TimeUnit.SECONDS)
-                .map(n -> this.busStopIDTxt.getText().toString())
-                .filter(n -> n.length() > 0)
-                .flatMap(n -> apiProvider.getBusDataObservable(Integer.parseInt("041")))
-                .subscribe(
-                        n -> resultView.setText(n.toString()),
-                        e -> Log.e(TAG,e.getLocalizedMessage())
-                );
+    @Override
+    protected void onPause() {
+        super.onPause();
+        /* all Item dispose */
+        for(int i = 0; i<disposeBag.size(); i++) {
+            Disposable item = disposeBag.get(i);
+            if(item != null && !item.isDisposed()) {
+                item.dispose();
+            }
+        }
     }
+
     @OnClick(R.id.button)
     void clickSearchingBtn() {
         Log.d(TAG,"clickSearchingBtn");
