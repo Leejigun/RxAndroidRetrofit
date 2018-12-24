@@ -2,6 +2,7 @@ package com.example.dlwlr.rxandroidretrofit;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -40,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
     EditText busStopIDTxt;
     @BindView(R.id.button)
     Button searchBtn;
+    @BindView(R.id.button2)
+    Button nextBtn;
     @BindView(R.id.textView)
     TextView resultView;
 
@@ -81,8 +84,17 @@ public class MainActivity extends AppCompatActivity {
             },
                 e -> resultView.setText(e.getLocalizedMessage())
         );
+
+        Disposable nextEvent = RxView.clicks(nextBtn)
+        .subscribe(
+                avoid -> {
+                    Intent intent = new Intent(this, Main2Activity.class);
+                    startActivity(intent);
+                }
+        );
         /* Disposable 저장 */
         disposeBag.add(events);
+        disposeBag.add(nextEvent);
     }
 
     @Override
