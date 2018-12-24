@@ -1,4 +1,4 @@
-package com.example.dlwlr.rxandroidretrofit;
+package com.example.dlwlr.rxandroidretrofit.Views;
 
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
@@ -12,9 +12,39 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
+import android.widget.TextView;
+
+import com.example.dlwlr.rxandroidretrofit.Actions.CounterActions;
+import com.example.dlwlr.rxandroidretrofit.R;
+import com.example.dlwlr.rxandroidretrofit.Reducers.CounterReducer;
+import com.jakewharton.rxbinding3.view.RxView;
+import com.yheriatovych.reductor.Actions;
+import com.yheriatovych.reductor.StateChangeListener;
+import com.yheriatovych.reductor.Store;
+
+import java.util.ArrayList;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import io.reactivex.disposables.Disposable;
 
 public class Main2Activity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
+
+    //MARK: - Views
+    @BindView(R.id.countTextView)
+    TextView counterTextView;
+    @BindView(R.id.increaseBtn)
+    Button increaseBtn;
+    @BindView(R.id.decreaseBtn)
+    Button decreaseBtn;
+    @BindView(R.id.addTenBtn)
+    Button addTenBtn;
+
+    /* Redux Store */
+    Store<Integer> counterStore = Store.create(CounterReducer.create());
+    ArrayList<Disposable> disposeBag = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -22,6 +52,7 @@ public class Main2Activity extends AppCompatActivity
         setContentView(R.layout.activity_main2);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        ButterKnife.bind(this);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -40,6 +71,48 @@ public class Main2Activity extends AppCompatActivity
 
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        counterStore.subscribe(new StateChangeListener<Integer>() {
+            @Override
+            public void onStateChanged(Integer state) {
+                counterTextView.setText(counterStore.getState().toString());
+            }
+        });
+        /* +1 버튼 이벤트 리스너 */
+        Disposable increase = RxView.clicks(increaseBtn)
+        .subscribe(n -> {
+            CounterActions actions = Actions.from(CounterActions.class);
+            counterStore.dispatch(actions.increment());
+        });
+        /* -1 버튼 이벤트 리스너 */
+        Disposable decrease = RxView.clicks(decreaseBtn)
+        .subscribe(n -> {
+            CounterActions actions = Actions.from(CounterActions.class);
+            counterStore.dispatch(actions.decrement());
+        });
+        /* 10 추가 버튼 이벤트 리스너 */
+        Disposable addTen = RxView.clicks(addTenBtn)
+        .subscribe( n -> {
+            CounterActions actions = Actions.from(CounterActions.class);
+            counterStore.dispatch(actions.add(10));
+        });
+        /* disposeBag 에 담기 */
+        disposeBag.add(increase);
+        disposeBag.add(decrease);
+        disposeBag.add(addTen);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        /* 메모리 관리 */
+        for(Disposable item : disposeBag) {
+            item.dispose();
+        }
     }
 
     @Override

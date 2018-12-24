@@ -12,24 +12,20 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import com.example.dlwlr.rxandroidretrofit.API.BusAPI;
-import com.example.dlwlr.rxandroidretrofit.Model.Bus;
+import com.example.dlwlr.rxandroidretrofit.Views.Main2Activity;
+import com.example.dlwlr.rxandroidretrofit.Views.TodoActivity;
 import com.jakewharton.rxbinding3.view.RxView;
 import com.jakewharton.rxbinding3.widget.RxTextView;
 
 import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import io.reactivex.Observable;
-import io.reactivex.Scheduler;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -43,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
     Button searchBtn;
     @BindView(R.id.button2)
     Button nextBtn;
+    @BindView(R.id.moveTodoBtn)
+    Button moveTodoBtn;
     @BindView(R.id.textView)
     TextView resultView;
 
@@ -84,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
             },
                 e -> resultView.setText(e.getLocalizedMessage())
         );
-
+        /* 다음 화면으로 넘어가기 */
         Disposable nextEvent = RxView.clicks(nextBtn)
         .subscribe(
                 avoid -> {
@@ -92,9 +90,18 @@ public class MainActivity extends AppCompatActivity {
                     startActivity(intent);
                 }
         );
+        /* 투두 화면으로 이동 */
+        Disposable moveTodo = RxView.clicks(moveTodoBtn)
+        .subscribe(
+                avoid -> {
+                    Intent intent = new Intent(this,TodoActivity.class);
+                    startActivity(intent);
+                }
+        );
         /* Disposable 저장 */
         disposeBag.add(events);
         disposeBag.add(nextEvent);
+        disposeBag.add(moveTodo);
     }
 
     @Override
